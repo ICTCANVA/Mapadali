@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Tracker Map with Side Panel</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-locatecontrol/dist/L.Control.Locate.min.css" />
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+            transition: width 0.3s ease;
+            float: left;
+        }
+        #side-panel {
+            width: 20%;
+            height: 100vh;
+            float: left;
+            background-color: #f4f4f4;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            overflow-y: auto;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        #side-panel.show {
+            transform: translateX(0);
+        }
+        #map.side-panel-open {
+            width: 80%;
+        }
+        #side-panel h2 {
+            margin-top: 0;
+        }
+        #side-panel p {
+            margin-bottom: 0;
+        }
+        #side-panel button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+        #side-panel button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div id="side-panel">
+        <h2 id="panel-title">Information</h2>
+        <p id="panel-description">Click on a marker to see more details.</p>
+        <button id="close-panel">Close</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-locatecontrol/dist/L.Control.Locate.min.js"></script>
+
+    <script>
+        const bounds = [
+            [15.2497, 120.8550],
+            [15.2505, 120.8560]
+        ];
+
+        const map = L.map('map', {
+            center: [15.2501, 120.8553],
+            zoom: 18,
+            maxBounds: null,
+            maxBoundsViscosity: 1.0,
+            minZoom: 18,
+            maxZoom: 22,
+            zoomControl: true
+        }).fitBounds(bounds);
+
+        const Thunderforest_OpenCycleMap = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=f93993347dcb4416b7edd4a18dc02e1b', {
+            attribution: '&copy; <a href="http://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 22
+        }).addTo(map);
+
+        const customIcon = L.icon({
+            iconUrl: 'https://images.ctfassets.net/3prze68gbwl1/assetglossary-17su9wok1ui0z7w/c4c4bdcdf0d0f86447d3efc450d1d081/map-marker.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const buildings = [
+            { coords: [15.250311579107612, 120.85590345230766], name: "Guard House", description: "Main administration building."},
+            { coords: [15.24985233451828, 120.85593099636382], name: "Umali Gym", description: "Science laboratory." },
+            { coords: [15.250000000000000, 120.855300000000000], name: "Library", description: "School library." },
+            { coords: [15.250300000000000, 120.855400000000000], name: "Gymnasium", description: "Sports and gym facilities." },
+            { coords: [15.25022987071044, 120.8552589378675], name: "GRADE 10 Castor", description: "Grade 10 Section." },
+            { coords: [15.249516622701044, 120.8553485204177], name: "New Location", description: "Description of the new location." },
+            { coords: [15.250660412672817, 120.85549872411569], name: "Newly Added Location", description: "Description of the newly added location." },
+            { coords: [15.25041457598689, 120.85524123206201], name: "Another New Location", description: "Description of another new location." },
+            { coords: [15.250391286180674, 120.85508834615517], name: "GRADE 10 Area", description: "Description of GRADE 10 Area." },
+            { coords: [15.250989057056362, 120.85498642221727], name: "STE Building", description: "Description of STE Building."
+             },
+            { coords: [15.250326592260995, 120.85478525655037], name: "SPJ Building", description: "Description of SPJ Building." },
+            { coords: [15.24942346306267, 120.8550829817374], name: "GRADE 9 Area", description: "Description of GRADE 9 Area." },
+            { coords: [15.249920971697922, 120.85549506451969], name: "SOTTO GYM", description: "Gym facility." },
+            { coords: [15.249880576246552, 120.85517476071666], name: "ADMIN BUILDING", description: "Main administration building." },
+            { coords: [15.250082553425738, 120.85497797275927], name: "GUIDANCE", description: "Guidance office." },
+            { coords: [15.24995934736953, 120.8549675053147], name: "CO-OP", description: "Cooperative office." },
+            { coords: [15.250139107001132, 120.85566254363239], name: "ESP CENTER", description: "ESP activities center." },
+            { coords: [15.2505, 120.8558], name: "GREENHILLS GRADE 7", description: "Grade 7 building." },
+            { coords: [15.250025182376838, 120.85647058271353], name: "CNHS PATHWAY", description: "Pathway that leads inside the campus." } // New marker
+        ];
+
+        function addMarker(coords, name, description) {
+            const marker = L.marker(coords, { icon: customIcon }).addTo(map);
+            marker.on('click', () => {
+                document.getElementById('panel-title').textContent = name;
+                document.getElementById('panel-description').textContent = description;
+                document.getElementById('side-panel').classList.add('show');
+                document.getElementById('map').classList.add('side-panel-open');
+            });
+        }
+
+        buildings.forEach(building => {
+            addMarker(building.coords, building.name, building.description);
+        });
+
+        document.getElementById('close-panel').addEventListener('click', () => {
+            document.getElementById('side-panel').classList.remove('show');
+            document.getElementById('map').classList.remove('side-panel-open');
+        });
+
+        map.on('click', () => {
+            document.getElementById('side-panel').classList.remove('show');
+            document.getElementById('map').classList.remove('side-panel-open');
+        });
+
+        function showUserLocation(position) {
+            const userCoords = [position.coords.latitude, position.coords.longitude];
+            
+            // Add a marker for the user's location
+            const userMarker = L.marker(userCoords, { icon: customIcon }).addTo(map);
+            userMarker.bindPopup("You are here!").openPopup();
+
+            // Center the map around the user's location
+            map.setView(userCoords, 18);
+        }
+
+        // Error handler if geolocation is unavailable or denied
+        function geolocationError(error) {
+            console.log("Geolocation error: " + error.message);
+            alert("Unable to retrieve your location.");
+        }
+
+        // Check if geolocation is supported
+        if ("geolocation" in navigator) {
+            // Get current position
+            navigator.geolocation.getCurrentPosition(showUserLocation, geolocationError);
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+
+        L.control.scale().addTo(map);
+        L.control.locate().addTo(map);
+    </script>
+</body>
+</html>
