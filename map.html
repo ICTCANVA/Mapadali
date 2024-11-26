@@ -46,6 +46,11 @@
         #side-panel p {
             margin-bottom: 0;
         }
+        #side-panel img {
+            width: 100%;
+            margin-top: 10px;
+            display: none;
+        }
         #side-panel button {
             background-color: #007bff;
             color: white;
@@ -64,6 +69,7 @@
     <div id="side-panel">
         <h2 id="panel-title">Information</h2>
         <p id="panel-description">Click on a marker to see more details.</p>
+        <img id="panel-image" src="" alt="Building Image" />
         <button id="close-panel">Close</button>
     </div>
 
@@ -71,8 +77,7 @@
     <script src="https://unpkg.com/leaflet-locatecontrol/dist/L.Control.Locate.min.js"></script>
 
     <script>
-       
-  const bounds = [
+        const bounds = [
             [15.2497, 120.8550],
             [15.2505, 120.8560]
         ];
@@ -87,7 +92,6 @@
             zoomControl: true
         }).fitBounds(bounds);
 
-
         const Thunderforest_OpenCycleMap = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=f93993347dcb4416b7edd4a18dc02e1b', {
             attribution: '&copy; <a href="http://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 22
@@ -101,8 +105,8 @@
         });
 
         const buildings = [
-            { coords: [15.250311579107612, 120.85590345230766], name: "Guard House", description: "Main administration building."},
-            { coords: [15.24985233451828, 120.85593099636382], name: "Umali Gym", description: "Science laboratory." },
+            { coords: [15.250311579107612, 120.85590345230766], name: "Guard House", description: "Main administration building." },
+            { coords: [15.250989057056362, 120.85498642221727], name: "STE Building", description: "Description of STE Building.", image: "ste.jpeg" },
             { coords: [15.250000000000000, 120.855300000000000], name: "Library", description: "School library." },
             { coords: [15.250300000000000, 120.855400000000000], name: "Gymnasium", description: "Sports and gym facilities." },
             { coords: [15.25022987071044, 120.8552589378675], name: "GRADE 10 Castor", description: "Grade 10 Section." },
@@ -120,21 +124,31 @@
             { coords: [15.24995934736953, 120.8549675053147], name: "CO-OP", description: "Cooperative office." },
             { coords: [15.250139107001132, 120.85566254363239], name: "ESP CENTER", description: "ESP activities center." },
             { coords: [15.2505, 120.8558], name: "GREENHILLS GRADE 7", description: "Grade 7 building." },
-            { coords: [15.250025182376838, 120.85647058271353], name: "CNHS PATHWAY", description: "Pathway that leads inside the campus." } // New marker
+            { coords: [15.250025182376838, 120.85647058271353], name: "CNHS PATHWAY", description: "Pathway that leads inside the campus." }
         ];
 
-        function addMarker(coords, name, description) {
-            const marker = L.marker(coords, { icon: customIcon }).addTo(map).bindPopup('<h1>STE BUILDING</h1><img src = "ste.jpeg"');
+        function addMarker(coords, name, description, image) {
+            const marker = L.marker(coords, { icon: customIcon }).addTo(map);
             marker.on('click', () => {
                 document.getElementById('panel-title').textContent = name;
                 document.getElementById('panel-description').textContent = description;
+
+                // Handle image
+                const panelImage = document.getElementById('panel-image');
+                if (image) {
+                    panelImage.src = image;
+                    panelImage.style.display = 'block'; // Show the image
+                } else {
+                    panelImage.style.display = 'none'; // Hide the image if not available
+                }
+
                 document.getElementById('side-panel').classList.add('show');
                 document.getElementById('map').classList.add('side-panel-open');
             });
         }
 
         buildings.forEach(building => {
-            addMarker(building.coords, building.name, building.description);
+            addMarker(building.coords, building.name, building.description, building.image);
         });
 
         document.getElementById('close-panel').addEventListener('click', () => {
@@ -146,34 +160,6 @@
             document.getElementById('side-panel').classList.remove('show');
             document.getElementById('map').classList.remove('side-panel-open');
         });
-
-        function showUserLocation(position) {
-            const userCoords = [position.coords.latitude, position.coords.longitude];
-            
-            // Add a marker for the user's location
-            const userMarker = L.marker(userCoords, { icon: customIcon }).addTo(map);
-            userMarker.bindPopup("You are here!").openPopup();
-
-            // Center the map around the user's location
-            map.setView(userCoords, 18);
-        }
-
-        // Error handler if geolocation is unavailable or denied
-        function geolocationError(error) {
-            console.log("Geolocation error: " + error.message);
-            alert("Unable to retrieve your location.");
-        }
-
-        // Check if geolocation is supported
-        if ("geolocation" in navigator) {
-            // Get current position
-            navigator.geolocation.getCurrentPosition(showUserLocation, geolocationError);
-        } else {
-            alert("Geolocation is not supported by this browser.");
-        }
-
-        L.control.scale().addTo(map);
-        L.control.locate().addTo(map);
     </script>
 </body>
 </html>
