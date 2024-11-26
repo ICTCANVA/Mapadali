@@ -124,7 +124,7 @@
         ];
 
         function addMarker(coords, name, description) {
-            const marker = L.marker(coords, { icon: customIcon }).addTo(map);
+            const marker = L.marker(coords, { icon: customIcon }).addTo(map).bindPopup('<h1>STE BUILDING</h1><img src = "ste.jpeg"');
             marker.on('click', () => {
                 document.getElementById('panel-title').textContent = name;
                 document.getElementById('panel-description').textContent = description;
