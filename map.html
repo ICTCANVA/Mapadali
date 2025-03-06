@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Tracker Map with Side Panel</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-locatecontrol/dist/L.Control.Locate.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to right, #f0f4f8, #d9e4f5);
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+            transition: width 0.3s ease;
+            float: left;
+        }
+        #side-panel {
+            width: 19%;
+            height: 100vh;
+            float: left;
+            background-color: #ffffff;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            overflow-y: auto;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            border-radius: 10px;
+        }
+        #side-panel.show {
+            transform: translateX(0);
+        }
+        #map.side-panel-open {
+            width: 79%;
+        }
+        #side-panel h2 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        #side-panel p {
+            margin-bottom: 0;
+            color: #333;
+        }
+        #side-panel img {
+            width: 100%;
+            margin-top: 10px;
+            display: none;
+            border-radius: 5px;
+        }
+        #side-panel button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            margin-top: 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #side-panel button:hover {
+            background-color: #0056b3;
+        }
+        #pano {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: none;
+        }
+        #closePano {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1001;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #classes-list {
+            margin-top: 10px;
+            padding: 0;
+            list-style-type: none;
+        }
+        #classes-list li {
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+            transition: background-color 0.3s ease;
+        }
+        #classes-list li:hover {
+            background-color: #f0f4ff;
+        }
+        #search-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+        #search-input {
+            padding: 10px;
+            font-size: 18px;
+            width: 300px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            transition: border-color 0.3s ease;
+        }
+        #search-input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        #search-button {
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #search-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="pano"></div>
+    <button id="closePano">Close Panorama</button>
+
+    <div id="map"></div>
+    <div id="side-panel">
+        <h2 id="panel-title">Information</h2>
+        <p id="panel-description">Click on a marker to see more details.</p>
+        <img id="panel-image" src="" alt="Building Image" />
+        <div id="names-list"></div>
+        <button id="get-directions">Get Directions</button>
+        <button id="close-panel">Close</button>
+    </div>
+    <div id="search-bar">
+        <input
+            type="text"
+            id="search-input"
+            placeholder="Search for sections"
+        />
+        <button id="search-button">Search</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-locatecontrol/dist/L.Control.Locate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script>
+        const bounds = [
+            [15.2497, 120.8550],
+            [15.2505, 120.8560]
+        ];
+
+        const map = L.map('map', {
+            center: [15.2501, 120.8553],
+            zoom: 18,
+            maxBounds: null,
+            maxBoundsViscosity: 1.0,
+            minZoom: 15,
+            maxZoom: 22,
+            zoomControl: true
+        }).fitBounds(bounds);
+
+        const Thunderforest_OpenCycleMap = L.tileLayer('https://{s}.tile.thunderforest.com/cycle/{z}/{x}/{y}.png?apikey=f93993347dcb4416b7edd4a18dc02e1b', {
+            attribution: '&copy; <a href="http://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 22
+        }).addTo(map);
+
+        const customIcon = L.icon({
+            iconUrl: 'https://images.ctfassets.net/3prze68gbwl1/assetglossary-17su9wok1ui0z7w/c4c4bdcdf0d0f86447d3efc450d1d081/map-marker.png',
+            iconSize: [35, 35],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const panoCustomIcon = L.icon({
+            iconUrl: 'https://i.postimg.cc/CxwM7nKx/bluelogo.png',
+            iconSize: [35, 35],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const pinkIcon = L.icon({
+            iconUrl: 'https://i.postimg.cc/63kgbRsm/pinkmarker-removebg-preview.png',
+            iconSize: [35, 35],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const greenIcon = L.icon({
+            iconUrl: 'https://i.postimg.cc/fR8Fn1nX/istockphoto-1320958147-612x612-removebg-preview-1.png',
+            iconSize: [35, 35],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const yellowIcon = L.icon({
+            iconUrl: 'https://i.postimg.cc/RVFKpYR2/istockphoto-1043529458-612x612-removebg-preview-1.png',
+            iconSize: [35, 35],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const panoMarkers = [
+            { coords: [15.250486484004641, 120.85550549284744], imageUrl: "https://i.postimg.cc/6Qcyr9X6/flagpole360.jpg" },
+            { coords: [15.249821791368806, 120.85485370577969], imageUrl: "https://i.postimg.cc/zBPvQ0v9/PANO-20241207-151653-9-1.jpg" },
+            { coords: [15.249582524633787, 120.85538813930202], imageUrl: "https://i.postimg.cc/VLwvVrks/ictbuilding.jpg" },
+            { coords: [15.25091293240581, 120.85494949665173], imageUrl: "https://i.postimg.cc/65hqJW8r/PANO-20241207-151251-8.jpg" },
+            { coords: [15.250551822561802, 120.85489433798446], imageUrl: "https://i.postimg.cc/MpKTzCBh/PANO-20241207-151050-7.jpg" },
+            { coords: [15.250298411774583, 120.85485756554752], imageUrl: "https://i.postimg.cc/KzQB8PzN/PANO-20250114-123306-6.jpg" },
+            { coords: [15.249879876458136, 120.85524179781757], imageUrl: "https://i.postimg.cc/g2S0jgqr/PANO-20241207-150306-5.jpg" },
+            { coords: [15.25027575648026, 120.8554583603219], imageUrl: "https://i.postimg.cc/nLNcYMWJ/PANO-20241207-145525-3.jpg" },
+            { coords: [15.250008170993082, 120.85550648531948], imageUrl: "https://i.postimg.cc/KzLc9xXg/PANO-20241207-144917-2-2.jpg" },
+            { coords: [15.250560016176943, 120.85448006996683], imageUrl: "https://i.postimg.cc/5yV4TT1K/PANO-20250114-120942-1.jpg" },
+            { coords: [15.250572668828884, 120.85392231872136], imageUrl: "https://i.postimg.cc/DfryLvd9/PANO-20250114-121224-3.jpg" },
+            { coords: [15.250634443533764, 120.854174579648], imageUrl: "https://i.postimg.cc/X7nNgRsp/PANO-20250114-121624-4.jpg" },
+            { coords: [15.249915688832067, 120.85594310980491], imageUrl: "https://i.postimg.cc/KzQB8PzN/PANO-20250114-123306-6.jpg" },
+        ];
+
+        panoMarkers.forEach((pano, index) => {
+            const marker = L.marker(pano.coords, { icon: panoCustomIcon }).addTo(map);
+            marker.on('click', () => {
+                console.log(`Panorama marker ${index + 1} clicked.`);
+                openPanorama(pano.imageUrl);
+            });
+        });
+
+        function openPanorama(imageUrl) {
+            const panoContainer = document.getElementById('pano');
+            const closePanoButton = document.getElementById('closePano');
+            panoContainer.style.display = 'block';
+            closePanoButton.style.display = 'block';
+
+            pannellum.viewer('pano', {
+                type: "equirectangular",
+                panorama: imageUrl,
+                autoLoad: true
+            });
+
+            closePanoButton.onclick = () => {
+                panoContainer.style.display = 'none';
+                closePanoButton.style.display = 'none';
+            };
+        }
+
+        const buildingData = [
+            { coords: [15.250311579107612, 120.85590345230766], name: "Guard House", description: "Main administration building.", image: "Mapassets/guardhouse.jpg"},
+            { coords: [15.249826404928342, 120.85592524902057], name: "Gymnasium", description: "Sports and gym facilities.", image: "Mapassets/umaligym.jpg" },
+            { coords: [15.250491459055628, 120.85499184032606], name: "Science Laboratories", description: "Sports and gym facilities.", image: "Mapassets/sciencelab.jpg" },
+            { coords: [15.250729532395072, 120.85482554337476], name: "Grade 8 Area1", description: "Sports and gym facilities.", image: "Mapassets/g8building1.jpg", names: ["Grade 8 m.a.d.c simbillo", "Grade 8 c. marquez" ,"Grade 8 j. naranjo" ,"Grade 8 r.a dela cruz"] },
+            { coords: [15.249516622701044, 120.8553485204177], name: "ICT Building", description: "ICT Building Grade 7-10", image: "Mapassets/ictbuilding.jpg", names: ["Grade 7 ICT", "Grade 9 ICT", "Grade 9 ICT", "Grade 10 ICT"] },
+            { coords: [15.250660412672817, 120.85549872411569], name: "GRADE 10 Area2", description: "Description of the newly added location.", image: "Mapassets/g10building2.jpg", names: ["Grade 10 SPS", "Grade 10 R. Tolentino", "Grade 10 K. Buan", "Grade 10 M.C Perez"] },
+            { coords: [15.25041457598689, 120.85524123206201], name: "GRADE 10 Area1", description: "Sections: Grade 10 Castor Grade 10 M.Muyot", image: "Mapassets/g10building1.jpg", names: ["Grade 10 J. Castor", "Grade 10 S. Quiday", "Grade 10 M. Suba", "Grade 10 M. Muyot", "Grade 10 L. Bernardino", "Grade 10 R.A Dela Cruz"] },
+            { coords: [15.250391286180674, 120.85508834615517], name: "Grade 10 Area 3", description: "Description of GRADE 10 Area.", image: "Mapassets/grade10area4.jpg" },
+            { coords: [15.250989057056362, 120.85498642221727], name: "STE Building", description: "STE Building Grade 7-9.", image: "Mapassets/stebuilding.jpg" },
+            { coords: [15.250326592260995, 120.85478525655037], name: "SPJ Building", description: "SPJ Building Grade 7-10", image: "Mapassets/spjbuilding.jpg" },
+            { coords: [15.24942346306267, 120.8550829817374], name: "GRADE 9 Area1", description: "Description of GRADE 9 Area.", image: "Mapassets/g9building1.jpg", names: ["Grade 9 m.munsayac", "Grade 9 a.ortiz", "Grade 9 Q. Lapuz", "Grade 9 R.Munsayac", "Grade 9 R.Grava", "Grade 9 MC.Agoc", "Grade 9 A.F Zabat", "Grade 9 L.Caymo", "Grade 9 SPS", "Grade 9 J.S Macaspac", "Grade 9 M.Gutierrez", "Grade 9 E.Holoyohoy"] },
+            { coords: [15.249920971697922, 120.85549506451969], name: "SOTTO GYM", description: "Gym facility.", image: "Mapassets/sottogym.jpg" },
+            { coords: [15.249883417565458, 120.85514197016741], name: "ADMIN BUILDING", description: "Main administration building.", image: "Mapassets/adminbuilding.jpg" },
+            { coords: [15.250082553425738, 120.85497797275927], name: "GUIDANCE", description: "Guidance office.", image: "Mapassets/guidance.jpg" },
+            { coords: [15.24995934736953, 120.8549675053147], name: "CO-OP", description: "Cooperative office.", image: "Mapassets/coop.jpg" },
+            { coords: [15.250139107001132, 120.85566254363239], name: "ESP CENTER", description: "ESP activities center.", image: "Mapassets/ESPCENTER.jpg" },
+            { coords: [15.2505, 120.8558], name: "Grade 10 Area5", description: "Grade 10.", image: "Mapassets/sned.jpg",  names: ["SNED", "Grade 10 N Santos", "Z. Tumpalan"] },
+            { coords: [15.250025182376838, 120.85647058271353], name: "CNHS PATHWAY", description: "Pathway that leads inside the campus.", image: "Mapassets/pathway.jpg" },
+            { coords: [15.250004528748244, 120.85572245026496], name: "Math Center", description: "Math Activities Center.", image: "Mapassets/math.jpg" },
+            { coords: [15.249816912854998, 120.85570084322221], name: "MAPEH Center", description: "MAPEH Activities Center.", image: "Mapassets/mapeh.jpg" },
+            { coords: [15.25087817227083, 120.85503298917097], name: "GRADE 8 Area2", description: "Pathway that leads inside the campus.", image: "Mapassets/g8building2.jpg", names: ["Grade 8 n.ponce",  "Grade 8 j. pantaleon"] },
+            { coords: [15.250739829829783, 120.85527066664127], name: "Restroom", description: "Comfort Room.", image: "Mapassets/restroom.jpg" },
+            { coords: [15.250244874562798, 120.8549695067229], name: "Grade 8 Area4", description: "Grade 8 Area.", image: "Mapassets/torres.jpg", names: ["Grade 8 Torres", "Grade 8 N. DOMINGO"] },
+            { coords: [15.249566500348342, 120.85465177256799], name: "Grade 9 Area2", description: "Grade 9 Area.", image: "Mapassets/ortiz.jpg", names: ["Grade 9 A. Ortiz"] },
+            { coords: [15.249517475521134, 120.85471498024715], name: "Grade 9 Area3", description: "Grade 9 Area.", image: "Mapassets/simbillo.jpeg", names: ["Grade 9 J.Simbillo"] },
+            { coords: [15.250273223733338, 120.85506636882563], name: "Grade 10 Area4", description: "Grade 10 Area.", image: "Mapassets/grade10area4.jpg" },
+            { coords: [15.249679083227287, 120.85541273784067], name: "MAIN CANTEEN", description: "CANTEEN", image: "Mapassets/g10building3.jpg" },
+            { coords: [15.250564997938518, 120.85451933310573], name: "GREENHILLS G7", description: "Grade 7 Area.", image: "Mapassets/g10building3.jpg" },
+            { coords: [15.25057674124989, 120.85417446119203], name: "GRADE 7 AREA1", description: "Grade 7 Area.", image: "Mapassets/g7area1.jpg" },
+            { coords: [15.250559778688807, 120.85384311366712], name: "GRADE 7 AREA2", description: "Grade 7 Area.", image: "Mapassets/g7area3.jpg" },
+            { coords: [15.250695479139143, 120.85416769899766], name: "GRADE 7 AREA3", description: "Grade 7 Area.", image: "Mapassets/g7area2.jpg" },
+            { coords: [15.250533682438313, 120.85439896604564], name: "GREENHILLS FACULTY", description: "Greenhills Teacher's Faculty Room.", image: "Mapassets/g10building3.jpg" },
+            { coords: [15.250456698480471, 120.85402028316003], name: "GREENHILLS CANTEEN", description: "canteen.", image: "Mapassets/canteeng7.jpg" },
+            { coords: [15.250461917732741, 120.85434892580719], name: "GRADE 7 AREA4", description: "GRADE 7.", image: "Mapassets/g7greenhills1.jpg" },
+            { coords: [15.24969713168745, 120.8547468654984], name: "GRADE 9 AREA5", description: "GRADE 9.", image: "Mapassets/khylie.jpg" },
+            { coords: [15.249937895915078, 120.85571523570852], name: "School Museum", description: "MUSEUM OF CNHS", image: "Mapassets/museum.jpg" },
+        ];
+
+        // Create a dictionary of markers by name for fast lookup
+        const markersByName = {};
+        buildingData.forEach((building) => {
+            // Determine the icon based on the building name
+            let icon;
+            if (building.name.toLowerCase().includes("grade 9")) {
+                icon = pinkIcon; // Use pink icon for Grade 9 areas
+            } else if (building.name.toLowerCase().includes("grade 7")) {
+                icon = greenIcon; // Use green icon for Grade 7 areas
+            } else if (building.name.toLowerCase().includes("grade 8")) {
+                icon = yellowIcon; // Use yellow icon for Grade 8 areas
+            } else {
+                icon = customIcon; // Default icon for other areas
+            }
+
+            const marker = L.marker(building.coords, { icon }).addTo(map);
+            markersByName[building.name.toLowerCase()] = { marker, building };
+
+            marker.on('click', () => {
+                updateSidePanel(building);
+            });
+        });
+
+        let currentBuilding = null; // Variable to track the currently displayed building
+        let routingControl; // Variable to hold the routing control
+
+        // Function to update the side panel
+        function updateSidePanel(building) {
+            currentBuilding = building; // Set the current building
+            document.getElementById('panel-title').textContent = building.name;
+            document.getElementById('panel-description').textContent = building.description;
+
+            const panelImage = document.getElementById('panel-image');
+            if (building.image) {
+                panelImage.src = building.image;
+                panelImage.style.display = 'block';
+            } else {
+                panelImage.style.display = 'none';
+            }
+
+            // Update the list of sections (names)
+            highlightMatchingNames(building.names, ''); // Clear highlights initially
+
+            // Show the side panel
+            document.getElementById('side-panel').classList.add('show');
+            document.getElementById('map').classList.add('side-panel-open');
+
+            // Add event listener for the directions button
+            document.getElementById('get-directions').onclick = () => {
+                getDirections(building.coords);
+            };
+        }
+
+        function getDirections(destinationCoords) {
+            // Clear previous routes
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            // Define the starting point (Guard House coordinates)
+            const guardHouseCoords = [15.250311579107612, 120.85590345230766];
+
+            // Create a new routing control using OSRM
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(guardHouseCoords[0], guardHouseCoords[1]),
+                    L.latLng(destinationCoords[0], destinationCoords[1])
+                ],
+                routeWhileDragging: true,
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1'
+                })
+            }).addTo(map);
+        }
+
+        // Function to highlight matching names
+        function highlightMatchingNames(names, searchInput) {
+            const namesListContainer = document.getElementById('names-list');
+            namesListContainer.innerHTML = ''; // Clear existing content
+
+            if (names && names.length > 0) {
+                names.forEach(name => {
+                    const listItem = document.createElement('li');
+                    if (name.toLowerCase().includes(searchInput)) {
+                        listItem.innerHTML = name.replace(new RegExp(searchInput, 'gi'), match => `<strong>${match}</strong>`); // Highlight match
+                    } else {
+                        listItem.textContent = name;
+                    }
+                    namesListContainer.appendChild(listItem);
+                });
+            } else {
+                const listItem = document.createElement('li');
+                listItem.textContent = "No sections available.";
+                namesListContainer.appendChild(listItem);
+            }
+        }
+
+        // Function to speak the text
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Add event listener for the search bar
+        document.getElementById('search-button').addEventListener('click', () => {
+            const searchInput = document.getElementById('search-input').value.trim().toLowerCase();
+
+            if (searchInput) {
+                // Check for matching building names
+                const foundBuilding = buildingData.find(building => 
+                    building.name.toLowerCase().includes(searchInput) || 
+                    (building.names && building.names.some(name => name.toLowerCase().includes(searchInput)))
+                );
+
+                if (foundBuilding) {
+                    // If a matching building is found, open its side panel
+                    const markerData = markersByName[foundBuilding.name.toLowerCase()];
+                    if (markerData) {
+                        const { marker } = markerData;
+                        map.setView(marker.getLatLng(), 22);
+                        marker.openPopup();
+                        updateSidePanel(foundBuilding);
+                        
+                        // Speak the navigation message
+                        speak(`Navigating to ${foundBuilding.name}`);
+                    }
+                } else {
+                    alert("No matching marker or section found.");
+                }
+            } else {
+                alert("Please enter a search term.");
+            }
+        });
+
+        // Close the side panel when clicking the close button
+        document.getElementById('close-panel').addEventListener('click', () => {
+            document.getElementById('side-panel').classList.remove('show');
+            document.getElementById('map').classList.remove('side-panel-open');
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove routing control when closing the panel
+            }
+        });
+
+        // Close the side panel when clicking on the map
+        map.on('click', () => {
+            document.getElementById('side-panel').classList.remove('show');
+            document.getElementById('map').classList.remove('side-panel-open');
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove routing control when clicking on the map
+            }
+        });
+
+        function showUserLocation(position) {
+            const userCoords = [position.coords.latitude, position.coords.longitude];
+            const userMarker = L.marker(userCoords, { icon: customIcon }).addTo(map);
+            userMarker.bindPopup("You are here!").openPopup();
+            map.setView(userCoords, 18);
+        }
+
+        function geolocationError(error) {
+            console.log("Geolocation error: " + error.message);
+            alert("Unable to retrieve your location.");
+        }
+
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(showUserLocation, geolocationError);
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+
+        L.control.scale().addTo(map);
+        L.control.locate().addTo(map);
+    </script>
+</body>
+</html>
