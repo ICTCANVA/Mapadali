@@ -189,7 +189,7 @@
             maxZoom: 22
         }).addTo(map);
 
-         const customIcon = L.icon({
+        const customIcon = L.icon({
             iconUrl: 'https://images.ctfassets.net/3prze68gbwl1/assetglossary-17su9wok1ui0z7w/c4c4bdcdf0d0f86447d3efc450d1d081/map-marker.png',
             iconSize: [35, 35],
             iconAnchor: [16, 32],
@@ -204,21 +204,21 @@
         });
 
         const pinkIcon = L.icon({
-            iconUrl: 'https://i.postimg.cc/63kgbRsm/pinkmarker-removebg-preview.png',
+            iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Map_marker_pink.svg/1024px-Map_marker_pink.svg.png', // Example pink marker
             iconSize: [35, 35],
             iconAnchor: [16, 32],
             popupAnchor: [0, -32]
         });
 
         const greenIcon = L.icon({
-            iconUrl: 'https://i.postimg.cc/fR8Fn1nX/istockphoto-1320958147-612x612-removebg-preview-1.png',
+            iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Map_marker_green.svg/1024px-Map_marker_green.svg.png', // Example green marker
             iconSize: [35, 35],
             iconAnchor: [16, 32],
             popupAnchor: [0, -32]
         });
 
         const yellowIcon = L.icon({
-            iconUrl: 'https://i.postimg.cc/RVFKpYR2/istockphoto-1043529458-612x612-removebg-preview-1.png',
+            iconUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Map_marker_yellow.svg/1024px-Map_marker_yellow.svg.png', // Example yellow marker
             iconSize: [35, 35],
             iconAnchor: [16, 32],
             popupAnchor: [0, -32]
@@ -457,7 +457,7 @@
             }
         });
 
-        function showUserLocation(position) {
+        functionshowUser Location(position) {
             const userCoords = [position.coords.latitude, position.coords.longitude];
             const userMarker = L.marker(userCoords, { icon: customIcon }).addTo(map);
             userMarker.bindPopup("You are here!").openPopup();
